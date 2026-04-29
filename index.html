@@ -12,5 +12,29 @@
   alert("hello from " + document.domain);
 </script>
 
+  <script>
+console.log("=== START TEST ===");
+
+// SOP check
+try {
+  console.log("TOP:", window.top.document.domain);
+} catch(e) {
+  console.log("SOP BLOCKED");
+}
+
+// postMessage
+window.top.postMessage('alert(document.domain)', '*');
+
+// navigation
+try {
+  window.top.location = "javascript:alert(1)";
+} catch(e) {}
+
+// window.name
+window.name = '<svg onload=alert(1)>';
+
+console.log("=== END TEST ===");
+</script>
+  
 </body>
 </html>
