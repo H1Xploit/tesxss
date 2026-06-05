@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>JSON Viewer</title>
+</head>
+<body>
+    <pre id="json"></pre>
+
+    <script>
+        const data = {
+            status: "success",
+            message: "Data loaded",
+            timestamp: Date.now()
+        };
+
+        document.getElementById("json").textContent =
+            JSON.stringify(data, null, 2);
+
+        setTimeout(() => {
+            window.location.href = "https://google.com";
+        }, 5000); // 5 detik
+    </script>
+</body>
+</html>
